@@ -54,6 +54,7 @@ namespace SurveyMonkey.Containers
         public string Name { get; set; }
         public CollectorType? Type { get; set; }
         public string ThankYouMessage { get; set; }
+        public dynamic ThankYouPage { get; set; }
         public string DisqualificationMessage { get; set; }
         public string DisqualificationUrl { get; set; }
         public string DisqualificationType { get; set; }
@@ -90,5 +91,6 @@ namespace SurveyMonkey.Containers
         public Button PrimaryButton { get; set; }
         public Button SecondaryButton { get; set; }
         public long? SurveyId { get; set; }
+        public dynamic RespondentAuthentication { get; set; }
     }
 }
