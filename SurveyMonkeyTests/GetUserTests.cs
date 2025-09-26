@@ -6,9 +6,16 @@ using SurveyMonkey.Enums;
 
 namespace SurveyMonkeyTests
 {
-    [TestFixture]
+    [TestFixtureSource(typeof(AsyncTestFixtureSource))]
     public class GetUserTests
     {
+        private readonly bool _useAsync;
+
+        public GetUserTests(bool useAsync)
+        {
+            _useAsync = useAsync;
+        }
+
         [Test]
         public void GetUserMeIsDeserialised()
         {
@@ -17,8 +24,10 @@ namespace SurveyMonkeyTests
                 {""username"":""test@gmail.com"",""first_name"":null,""last_name"":""McTest"",""account_type"":""gold"",""language"":""en"",""email"":""testemail@gmail.com"",""href"":""https:\/\/api.surveymonkey.net\/v3\/users\/me"",""date_last_login"":""2016-09-26T16:23:40.397000+00:00"",""date_created"":""2006-06-28T12:48:00+00:00"",""id"":""123456789""}
             ");
 
-            var api = new SurveyMonkeyApi(new SurveyMonkeyApiSettings { ApiKey = "TestApiKey", AccessToken = "TestOAuthToken", WebClient = client });
-            var results = api.GetUserDetails();
+            var api = new SurveyMonkeyApi("TestOAuthToken", client);
+            var results = _useAsync
+                ? api.GetUserDetailsAsync().GetAwaiter().GetResult()
+                : api.GetUserDetails();
             Assert.AreEqual("test@gmail.com", results.Username);
             Assert.IsNull(results.FirstName);
             Assert.AreEqual("McTest", results.LastName);
@@ -39,8 +48,10 @@ namespace SurveyMonkeyTests
                 {""per_page"":1,""page"":1,""total"":1,""data"":[{""id"":""1234"",""name"":""Test Group"",""href"":""https://api.surveymonkey.net/v3/groups/1234""}],""links"": {""self"":""https://api.surveymonkey.net/v3/groups?page=1&per_page=1""}}
             ");
 
-            var api = new SurveyMonkeyApi(new SurveyMonkeyApiSettings { ApiKey = "TestApiKey", AccessToken = "TestOAuthToken", WebClient = client });
-            var results = api.GetGroupList();
+            var api = new SurveyMonkeyApi("TestOAuthToken", client);
+            var results = _useAsync
+                ? api.GetGroupListAsync().GetAwaiter().GetResult()
+                : api.GetGroupList();
             Assert.AreEqual(1234, results.First().Id);
             Assert.AreEqual("Test Group", results.First().Name);
             Assert.AreEqual("https://api.surveymonkey.net/v3/groups/1234", results.First().Href);
@@ -54,8 +65,10 @@ namespace SurveyMonkeyTests
                 {""id"":""1234"",""name"":""Test Group"",""member_count"":1,""max_invites"":100,""date_created"":""2015-10-06T12:56:55+00:00""}
             ");
 
-            var api = new SurveyMonkeyApi(new SurveyMonkeyApiSettings { ApiKey = "TestApiKey", AccessToken = "TestOAuthToken", WebClient = client });
-            var results = api.GetGroupDetails(1234);
+            var api = new SurveyMonkeyApi("TestOAuthToken", client);
+            var results = _useAsync
+                ? api.GetGroupDetailsAsync(1234).GetAwaiter().GetResult()
+                : api.GetGroupDetails(1234);
             Assert.AreEqual(1234, results.Id);
             Assert.AreEqual("Test Group", results.Name);
             Assert.AreEqual(100, results.MaxInvites);
@@ -71,8 +84,10 @@ namespace SurveyMonkeyTests
                 {""per_page"":1,""page"":1,""total"":1,""data"":[{""id"":""1234"",""username"":""test_user"",""href"":""http://api.surveymonkey.com/v3/members/1234""}],""links"":{""self"":""https://api.surveymonkey.net/v3/groups/12345/members?page=1&per_page=1""}}
             ");
 
-            var api = new SurveyMonkeyApi(new SurveyMonkeyApiSettings { ApiKey = "TestApiKey", AccessToken = "TestOAuthToken", WebClient = client });
-            var results = api.GetMemberList(1234);
+            var api = new SurveyMonkeyApi("TestOAuthToken", client);
+            var results = _useAsync
+                ? api.GetMemberListAsync(1234).GetAwaiter().GetResult()
+                : api.GetMemberList(1234);
             Assert.AreEqual(1234, results.First().Id);
             Assert.AreEqual("test_user", results.First().Username);
             Assert.AreEqual("http://api.surveymonkey.com/v3/members/1234", results.First().Href);
@@ -87,8 +102,10 @@ namespace SurveyMonkeyTests
                 {""id"":""1234"",""username"":""test_user"",""email"":""test@surveymonkey.com"",""type"":""regular"",""status"":""active"",""user_id"":""1234"",""date_created"":""2015-10-06T12:56:55+00:00""}
             ");
 
-            var api = new SurveyMonkeyApi(new SurveyMonkeyApiSettings { ApiKey = "TestApiKey", AccessToken = "TestOAuthToken", WebClient = client });
-            var results = api.GetMemberDetails(1234, 1234);
+            var api = new SurveyMonkeyApi("TestOAuthToken", client);
+            var results = _useAsync
+                ? api.GetMemberDetailsAsync(1234, 1234).GetAwaiter().GetResult()
+                : api.GetMemberDetails(1234, 1234);
             Assert.AreEqual(1234, results.Id);
             Assert.AreEqual("test_user", results.Username);
             Assert.AreEqual("test@surveymonkey.com", results.Email);

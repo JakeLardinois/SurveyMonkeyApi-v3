@@ -1,21 +1,22 @@
-﻿using System;
+﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using SurveyMonkey.Containers;
+using SurveyMonkey.Helpers;
+using SurveyMonkey.RequestSettings;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Web;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
-using SurveyMonkey.Containers;
-using SurveyMonkey.Helpers;
-using SurveyMonkey.RequestSettings;
 
 namespace SurveyMonkey
 {
     public partial class SurveyMonkeyApi : IDisposable, ISurveyMonkeyApi
     {
-        private readonly string _apiUrl;
+        private readonly string _apiUrl = "https://api.surveymonkey.com";
         private readonly string _apiKey;
         private readonly string _accessToken;
         private IWebClient _webClient;
@@ -24,6 +25,9 @@ namespace SurveyMonkey
         private readonly int[] _retrySequence = { 5, 30, 300, 900 };
         private int _requestsMade;
 
+        /// <summary>
+        /// The total number of api requests, including retries, made in the lifetime of this object.
+        /// </summary>
         public int ApiRequestsMade => _requestsMade;
 
         public IWebProxy Proxy
@@ -55,6 +59,125 @@ namespace SurveyMonkey
                 _apiUrl = settings.ApiUrl;
         }
 
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        public SurveyMonkeyApi(string accessToken)
+            : this(accessToken, null, null, null, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="rateLimitDelay">The number of milliseconds to wait between each api request. 500ms by default to accomodate SurveyMonkey's default 120/s limit. Set to a lower number if you have been granted a higher rate limit.</param>
+        public SurveyMonkeyApi(string accessToken, int rateLimitDelay)
+            : this(accessToken, rateLimitDelay, null, null, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="retrySequence">A sequence of the number of seconds to wait between retries if connectivity issues are encountered. Defaults to 5, 30, 300, then 900 seconds.</param>
+        public SurveyMonkeyApi(string accessToken, int[] retrySequence)
+            : this(accessToken, null, retrySequence, null, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="rateLimitDelay">The number of milliseconds to wait between each api request. 500ms by default to accomodate SurveyMonkey's default 120/s limit. Set to a lower number if you have been granted a higher rate limit.</param>
+        /// <param name="retrySequence">A sequence of the number of seconds to wait between retries if connectivity issues are encountered. Defaults to 5, 30, 300, then 900 seconds.</param>
+        public SurveyMonkeyApi(string accessToken, int rateLimitDelay, int[] retrySequence)
+            : this(accessToken, rateLimitDelay, retrySequence, null, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="accessUrl">Use to connect to an api access url other than the default https://api.surveymonkey.com.</param>
+        public SurveyMonkeyApi(string accessToken, string accessUrl)
+            : this(accessToken, null, null, accessUrl, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="rateLimitDelay">The number of milliseconds to wait between each api request. 500ms by default to accomodate SurveyMonkey's default 120/s limit. Set to a lower number if you have been granted a higher rate limit.</param>
+        /// <param name="accessUrl">Use to connect to an api access url other than the default https://api.surveymonkey.com.</param>
+        public SurveyMonkeyApi(string accessToken, int rateLimitDelay, string accessUrl)
+            : this(accessToken, rateLimitDelay, null, accessUrl, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="retrySequence">A sequence of the number of seconds to wait between retries if connectivity issues are encountered. Defaults to 5, 30, 300, then 900 seconds.</param>
+        /// <param name="accessUrl">Use to connect to an api access url other than the default https://api.surveymonkey.com.</param>
+        public SurveyMonkeyApi(string accessToken, int[] retrySequence, string accessUrl)
+            : this(accessToken, null, retrySequence, accessUrl, null)
+        {
+        }
+
+        /// <param name="accessToken">The Access Token, representing either a private app's access token, or the long-lived token granted by an OAuth 2.0 flow.</param>
+        /// <param name="rateLimitDelay">The number of milliseconds to wait between each api request. 500ms by default to accomodate SurveyMonkey's default 120/s limit. Set to a lower number if you have been granted a higher rate limit.</param>
+        /// <param name="retrySequence">A sequence of the number of seconds to wait between retries if connectivity issues are encountered. Defaults to 5, 30, 300, then 900 seconds.</param>
+        /// <param name="accessUrl">Use to connect to an api access url other than the default https://api.surveymonkey.com.</param>
+        public SurveyMonkeyApi(string accessToken, int rateLimitDelay, int[] retrySequence, string accessUrl)
+            : this(accessToken, rateLimitDelay, retrySequence, accessUrl, null)
+        {
+        }
+
+        internal SurveyMonkeyApi(string accessToken, IWebClient webClient)
+            : this(accessToken, 0, null, null, webClient)
+        {
+        }
+
+        internal SurveyMonkeyApi(string accessToken, IWebClient webClient, int rateLimitDelay)
+            : this(accessToken, rateLimitDelay, null, null, webClient)
+        {
+        }
+
+        internal SurveyMonkeyApi(string accessToken, IWebClient webClient, int[] retrySequence)
+            : this(accessToken, null, retrySequence, null, webClient)
+        {
+        }
+
+        private SurveyMonkeyApi(string accessToken, int? rateLimitDelay, int[] retrySequence, string accessUrl, IWebClient webClient)
+        {
+            _webClient = webClient ?? new LiveWebClient();
+            _webClient.Encoding = Encoding.UTF8;
+            _accessToken = accessToken;
+
+            if (rateLimitDelay.HasValue)
+            {
+                _rateLimitDelay = rateLimitDelay.Value;
+            }
+
+            if (retrySequence != null)
+            {
+                _retrySequence = retrySequence;
+            }
+
+            if (accessUrl != null)
+            {
+                if (!accessUrl.StartsWith("http"))
+                {
+                    throw new ArgumentException($"Invalid url {accessUrl} given. Base access url must be a full url, eg \"https://api.eu.surveymonkey.com\"");
+                }
+                _apiUrl = accessUrl;
+            }
+        }
+
+        private JToken MakeApiGetRequest(string endpoint, RequestData data)
+        {
+            return MakeApiRequest(endpoint, Verb.GET, data);
+        }
+
+        private JToken MakeApiRequest(string endpoint, Verb verb, RequestData data)
+        {
+            RateLimit();
+            PrepareWebClientForRequest(verb, data);
+
+            string url = GetFullUrl(endpoint);
+            string result = AttemptApiRequestWithRetry(url, verb, data);
+
+            _lastRequestTime = DateTime.UtcNow;
+
+            return JObject.Parse(result);
+        }
+
         private JToken MakeApiFormPostRequest(string endpoint, Verb verb, RequestData data)
         {
             RateLimit();
@@ -76,18 +199,45 @@ namespace SurveyMonkey
             return parsed;
         }
 
-        private JToken MakeApiRequest(string endpoint, Verb verb, RequestData data)
+        private async Task<JToken> MakeApiGetRequestAsync(string endpoint, RequestData data)
         {
-            RateLimit();
-            ResetWebClient();
+            return await MakeApiRequestAsync(endpoint, Verb.GET, data);
+        }
 
+        private async Task<JToken> MakeApiRequestAsync(string endpoint, Verb verb, RequestData data)
+        {
+            await RateLimitAsync();
+            PrepareWebClientForRequest(verb, data);
+
+            string url = GetFullUrl(endpoint);
+            string result = await AttemptApiRequestWithRetryAsync(url, verb, data);
+
+            _lastRequestTime = DateTime.UtcNow;
+
+            return JObject.Parse(result);
+        }
+
+        private async Task<JToken> MakeApiFormPostRequestAsync(string endpoint, Verb verb, RequestData data)
+        {
+            await RateLimitAsync();
+            ResetWebClient();
             var url = _apiUrl + endpoint;
+            _webClient.Headers.Add("Content-Type", "application/x-www-form-urlencoded");
+            if (!string.IsNullOrEmpty(_accessToken))
+                _webClient.Headers.Add("Authorization", "bearer " + _accessToken);
+            if (!String.IsNullOrEmpty(_apiKey))
+                _webClient.QueryString.Add("api_key", _apiKey);
+            string result = await AttemptApiRequestWithRetryAsync(url, Verb.POST, data);
+            _lastRequestTime = DateTime.UtcNow;
+            var parsed = JObject.Parse(result);
+            return parsed;
+        }
+
+        private void PrepareWebClientForRequest(Verb verb, RequestData data)
+        {
+            ResetWebClient();
             _webClient.Headers.Add("Content-Type", "application/json");
             _webClient.Headers.Add("Authorization", "bearer " + _accessToken);
-            if (!String.IsNullOrEmpty(_apiKey))
-            {
-                _webClient.QueryString.Add("api_key", _apiKey);
-            }
             if (verb == Verb.GET)
             {
                 foreach (var item in data)
@@ -95,71 +245,151 @@ namespace SurveyMonkey
                     _webClient.QueryString.Add(item.Key, item.Value.ToString());
                 }
             }
-            string result = AttemptApiRequestWithRetry(url, verb, data);
+        }
 
-            _lastRequestTime = DateTime.UtcNow;
-
-            var parsed = JObject.Parse(result);
-            return parsed;
+        private string GetFullUrl(string endpoint)
+        {
+            return $"{_apiUrl}/v3{endpoint}";
         }
 
         private string AttemptApiRequestWithRetry(string url, Verb verb, RequestData data)
         {
+            // Decide once which function to use
+            Func<string, Verb, RequestData, string> attemptFunc;
+            if (!string.IsNullOrEmpty(_webClient.Headers.Get("Content-Type")) && _webClient.Headers.Get("Content-Type").Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+                attemptFunc = AttemptApiFormPostRequest;
+            else
+                attemptFunc = AttemptApiRequest;
+
             if (_retrySequence == null || _retrySequence.Length == 0)
             {
-                if (!String.IsNullOrEmpty(_webClient.Headers.Get("Content-Type")) && _webClient.Headers.Get("Content-Type").Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
-                    return AttemptApiFormPostRequest(url, verb, data);
-                else
-                    return AttemptApiRequest(url, verb, data);
+                return attemptFunc(url, verb, data);
             }
             for (int attempt = 0; attempt <= _retrySequence.Length; attempt++)
             {
                 try
                 {
-                    if (!String.IsNullOrEmpty(_webClient.Headers.Get("Content-Type")) && _webClient.Headers.Get("Content-Type").Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
-                        return AttemptApiFormPostRequest(url, verb, data);
-                    else
-                        return AttemptApiRequest(url, verb, data);
+                    return attemptFunc(url, verb, data);
                 }
                 catch (WebException webEx)
                 {
-                    if (webEx.Status == WebExceptionStatus.SecureChannelFailure)
-                    {
-                        throw new WebException("SSL/TLS error. SurveyMonkey requires TLS 1.2, as of 13 June 2018. "
-                            + "Configure this globally with \"ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;\" anywhere before using this library. "
-                            + "See https://github.com/bcemmett/SurveyMonkeyApi-v3/issues/66 for details.", webEx);
-                    }
-                    if (attempt < _retrySequence.Length && (webEx.Response == null || ((HttpWebResponse)webEx.Response).StatusCode == HttpStatusCode.ServiceUnavailable))
+                    CheckForTlsError(webEx);
+                    if (FailedRequestShouldBeRetried(webEx, attempt))
                     {
                         Thread.Sleep(_retrySequence[attempt] * 1000);
                     }
                     else
                     {
-                        try
-                        {
-                            var response = new System.IO.StreamReader(webEx.Response.GetResponseStream()).ReadToEnd();
-                            var parsedError = JObject.Parse(response);
-                            var error = parsedError["error"].ToObject<Error>();
-                            string message = String.Format("Http status: {0}, error code {1}. {2}: {3}. See {4} for more information.", error.HttpStatusCode, error.Id, error.Name, error.Message, error.Docs);
-                            if (error.Id == "1014")
-                            {
-                                message += " Ensure your app has sufficient scopes granted to make this request: https://developer.surveymonkey.net/api/v3/#scopes";
-                            }
-                            throw new WebException(message, webEx);
-                        }
-                        catch (Exception e)
-                        {
-                            if (e is WebException)
-                            {
-                                throw;
-                            }
-                            //For anything other than our new WebException, swallow so that the original raw WebException is thrown
-                        }
+                        HandleWebConnectivityErrors(webEx);
                         throw;
                     }
                 }
             }
             return String.Empty;
+        }
+
+        private async Task<string> AttemptApiRequestWithRetryAsync(string url, Verb verb, RequestData data)
+        {
+            // Decide once which function to use
+            Func<string, Verb, RequestData, Task<string>> attemptFunc;
+            if (!string.IsNullOrEmpty(_webClient.Headers.Get("Content-Type")) && _webClient.Headers.Get("Content-Type").Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+                attemptFunc = AttemptApiFormPostRequestAsync;
+            else
+                attemptFunc = AttemptApiRequestAsync;
+
+            if (_retrySequence == null || _retrySequence.Length == 0)
+            {
+                return await attemptFunc(url, verb, data);
+            }
+            for (int attempt = 0; attempt <= _retrySequence.Length; attempt++)
+            {
+                try
+                {
+                    return await attemptFunc(url, verb, data);
+                }
+                catch (WebException webEx)
+                {
+                    CheckForTlsError(webEx);
+                    if (FailedRequestShouldBeRetried(webEx, attempt))
+                    {
+                        await Task.Delay(_retrySequence[attempt] * 1000);
+                    }
+                    else
+                    {
+                        HandleWebConnectivityErrors(webEx);
+                        throw;
+                    }
+                }
+            }
+            return String.Empty;
+        }
+
+        private void CheckForTlsError(WebException webEx)
+        {
+            if (webEx.Status == WebExceptionStatus.SecureChannelFailure)
+            {
+                throw new WebException("SSL/TLS error. SurveyMonkey requires TLS 1.2, as of 13 June 2018. "
+                    + "Configure this globally with \"ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12;\" anywhere before using this library. "
+                    + "See https://github.com/bcemmett/SurveyMonkeyApi-v3/issues/66 for details.", webEx);
+            }
+        }
+
+        private bool FailedRequestShouldBeRetried(WebException webEx, int attempt)
+        {
+            if (attempt >= _retrySequence.Length)
+            {
+                return false;
+            }
+            if (webEx.Response == null || ((HttpWebResponse)webEx.Response).StatusCode == HttpStatusCode.ServiceUnavailable)
+            {
+                return true;
+            }
+            return false;
+        }
+
+        private void HandleWebConnectivityErrors(WebException webEx)
+        {
+            try
+            {
+                var response = new System.IO.StreamReader(webEx.Response.GetResponseStream()).ReadToEnd();
+                var parsedError = JObject.Parse(response);
+                var error = parsedError["error"].ToObject<Error>();
+                string message = $"Http status: {error.HttpStatusCode}, error code {error.Id}. {error.Name}: {error.Message}. See {error.Docs} for more information.";
+                if (error.Id == "1014")
+                {
+                    message += " Ensure your app has sufficient scopes granted to make this request: https://developer.surveymonkey.net/api/v3/#scopes";
+                }
+                throw new WebException(message, webEx);
+            }
+            catch (Exception e)
+            {
+                if (e is WebException)
+                {
+                    throw;
+                }
+            }
+        }
+
+        private string AttemptApiRequest(string url, Verb verb, RequestData data)
+        {
+            _requestsMade++;
+
+            if (verb == Verb.GET)
+            {
+                return _webClient.DownloadString(url);
+            }
+            return _webClient.UploadString(url, verb.ToString(), JsonConvert.SerializeObject(data));
+        }
+
+        private async Task<string> AttemptApiRequestAsync(string url, Verb verb, RequestData data)
+        {
+            _requestsMade++;
+
+            if (verb == Verb.GET)
+            {
+                return await _webClient.DownloadStringTaskAsync(url);
+            }
+            return await _webClient.UploadStringTaskAsync(url, verb.ToString(), JsonConvert.SerializeObject(data));
         }
 
         private string AttemptApiFormPostRequest(string url, Verb verb, RequestData data)
@@ -186,7 +416,7 @@ namespace SurveyMonkey
             return _webClient.UploadString(url, verb.ToString(), sb.ToString());
         }
 
-        private string AttemptApiRequest(string url, Verb verb, RequestData data)
+        private async Task<string> AttemptApiFormPostRequestAsync(string url, Verb verb, RequestData data)
         {
             _requestsMade++;
 
@@ -194,19 +424,52 @@ namespace SurveyMonkey
             {
                 return _webClient.DownloadString(url);
             }
-            return _webClient.UploadString(url, verb.ToString(), JsonConvert.SerializeObject(data));
+            var json = JsonConvert.SerializeObject(data);
+            var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(json);
+            StringBuilder sb = new StringBuilder();
+            foreach (KeyValuePair<string, string> kvp in dict)
+            {
+                if (!string.IsNullOrEmpty(kvp.Key) && !string.IsNullOrEmpty(kvp.Value))
+                {
+                    if (sb.Length > 0) sb.Append('&');
+                    sb.Append(HttpUtility.UrlEncode(kvp.Key));
+                    sb.Append('=');
+                    sb.Append(HttpUtility.UrlEncode(kvp.Value));
+                }
+            }
+            return await _webClient.UploadStringTaskAsync(url, verb.ToString(), sb.ToString());
         }
 
         private void RateLimit()
         {
-            TimeSpan timeSpan = DateTime.UtcNow - _lastRequestTime;
-            int elapsedTime = (int)timeSpan.TotalMilliseconds;
-            int remainingTime = _rateLimitDelay - elapsedTime;
-            if ((_lastRequestTime != DateTime.MinValue) && (remainingTime > 0))
+            int remainingTime = GetRemainingRateLimitTime();
+            if (remainingTime > 0)
             {
                 Thread.Sleep(remainingTime);
             }
             _lastRequestTime = DateTime.UtcNow; //Also setting here as otherwise if an exception is thrown while making the request it wouldn't get set at all
+        }
+
+        private async Task RateLimitAsync()
+        {
+            int remainingTime = GetRemainingRateLimitTime();
+            if (remainingTime > 0)
+            {
+                await Task.Delay(remainingTime);
+            }
+            _lastRequestTime = DateTime.UtcNow; //Also setting here as otherwise if an exception is thrown while making the request it wouldn't get set at all
+        }
+
+        private int GetRemainingRateLimitTime()
+        {
+            if (_lastRequestTime == DateTime.MinValue)
+            {
+                return 0;
+            }
+            TimeSpan timeSpan = DateTime.UtcNow - _lastRequestTime;
+            int elapsedTime = (int)timeSpan.TotalMilliseconds;
+            int remainingTime = _rateLimitDelay - elapsedTime;
+            return remainingTime;
         }
 
         private IEnumerable<IPageableContainer> Page(IPagingSettings settings, string url, Type type, int maxResultsPerPage)
@@ -216,7 +479,7 @@ namespace SurveyMonkey
                 var requestData = RequestSettingsHelper.GetPopulatedProperties(settings);
                 return PageRequest(url, requestData, type);
             }
-
+            
             var results = new List<IPageableContainer>();
             bool cont = true;
             int page = 1;
@@ -239,10 +502,46 @@ namespace SurveyMonkey
             return results;
         }
 
+        private async Task<IEnumerable<IPageableContainer>> PageAsync(IPagingSettings settings, string url, Type type, int maxResultsPerPage)
+        {
+            if (settings.Page.HasValue || settings.PerPage.HasValue)
+            {
+                var requestData = RequestSettingsHelper.GetPopulatedProperties(settings);
+                return await PageRequestAsync(url, requestData, type);
+            }
+
+            var results = new List<IPageableContainer>();
+            bool cont = true;
+            int page = 1;
+            while (cont)
+            {
+                settings.Page = page;
+                settings.PerPage = maxResultsPerPage;
+                var requestData = RequestSettingsHelper.GetPopulatedProperties(settings);
+                var newResults = await PageRequestAsync(url, requestData, type);
+                if (newResults.Any())
+                {
+                    results.AddRange(newResults);
+                }
+                if (newResults.Count() < maxResultsPerPage)
+                {
+                    cont = false;
+                }
+                page++;
+            }
+            return results;
+        }
+
         private IEnumerable<IPageableContainer> PageRequest(string url, RequestData requestData, Type type)
         {
-            var verb = Verb.GET;
-            JToken result = MakeApiRequest(url, verb, requestData);
+            JToken result = MakeApiGetRequest(url, requestData);
+            var results = result["data"].ToObject(type);
+            return (IEnumerable<IPageableContainer>) results;
+        }
+
+        private async Task<IEnumerable<IPageableContainer>> PageRequestAsync(string url, RequestData requestData, Type type)
+        {
+            JToken result = await MakeApiGetRequestAsync(url, requestData);
             var results = result["data"].ToObject(type);
             return (IEnumerable<IPageableContainer>)results;
         }
